@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+import socket
+import re
+from struct import pack
+import time
+
+HOST = "127.0.0.1"
+PORT = 3551
+
+"""
+Python socket code is based on: https://github.com/python-diamond/Diamond/blob/master/src/collectors/apcupsd/apcupsd.py (b62bc3f)
+Which uses the MIT License (a22398)
+Copyright (C) 2010-2012 by Brightcove Inc.      http://www.brightcove.com/
+Copyright (C) 2011-2012 by Ivan Pouzyrevsky
+Copyright (C) 2011-2012 by Rob Smith            http://www.kormoc.com
+Copyright (C) 2012 Wijnand Modderman-Lenstra    https://maze.io/
+Copyright (C) 2012 Dennis Kaarsemaker           <dennis@kaarsemaker.net>
+"""
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((HOST, PORT))
+
+p = pack('xb6s', 6, bytes('status', 'utf-8'))
+s.send(p)
+
+s.recv(1024)
+time.sleep(.25)
+data = s.recv(4096)
+s.close()
+
+METRICS = {}
+data = data.split(bytes('\n\x00', 'utf-8'))
+for f in data:
+    d = f.decode('utf-8')
+    matches = re.search("([A-Z]+)\s+:\s+(.*)$", d)
+    if matches:
+        value = matches.group(2).strip()
+        vmatch = re.search("([0-9.]+)", value)
+        if not vmatch:
+            continue
+        try:
+            value = float(vmatch.group(1))
+        except ValueError:
+            continue
+        METRICS[matches.group(1)] = value
+
+ON_AC = True
+if int(METRICS['TONBATT']) > 0:
+    ON_AC = False
+
+LONG_OUTPUT = []
+SHORT_OUTPUT = []
+
+if ON_AC:
+    LONG_OUTPUT.append(f"<span>🔌{METRICS['LINEV']}V</span>")
+    SHORT_OUTPUT.append(f"<span>🔌</span>")
+    LONG_OUTPUT.append(f"<span>&#xf60b; {METRICS['BCHARGE']}%</span>")
+    SHORT_OUTPUT.append(f"<span>&#xf60b; {int(METRICS['BCHARGE'])}%</span>")
+    LONG_OUTPUT.append(f"<span>⌛{METRICS['TIMELEFT']}m</span>")
+else:
+    LONG_OUTPUT.append(f"<span color=\"red\"> ⚠️ ON BATT {int(METRICS['TONBATT'])}s</span>")
+    SHORT_OUTPUT.append(f"<span color=\"red\">⚠️ ON BATT</span>")
+
+    LONG_OUTPUT.append(f"<span>&#xf60b; {METRICS['BCHARGE']}%</span>")
+    LONG_OUTPUT.append(f"<span>⌛{METRICS['TIMELEFT']}m</span>")
+    SHORT_OUTPUT.append(f"<span>⌛{int(METRICS['TIMELEFT'])}m</span>")
+
+print(" ".join(LONG_OUTPUT))
+print(" ".join(SHORT_OUTPUT))
