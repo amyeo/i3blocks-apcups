@@ -30,8 +30,11 @@ bar {
 ## Screenshots
 Normal:
 ![alt text](https://github.com/amyeo/i3blocks-apcups/blob/master/normal.png?raw=true)
+
 On Battery:
 ![alt text](https://github.com/amyeo/i3blocks-apcups/blob/master/batt.png?raw=true)
+
+Short status output is also available.
 
 ## Keys
 If you'd like you can edit the script to use any of the other available keys:
